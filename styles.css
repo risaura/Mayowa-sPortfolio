@@ -73,15 +73,28 @@ html, body {
     display: flex; align-items: center; gap: 12px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1);
     transition: opacity 0.5s, transform 0.5s;
-    animation: notifSlide 0.5s ease-out;
+    animation: notifSlide 0.5s ease-out, notifFloat 3s ease-in-out 0.5s infinite, notifGlow 2s ease-in-out infinite;
+    overflow: hidden;
+}
+.home-notif::before {
+    content: ''; position: absolute; top: 0; left: -100%; width: 60%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: notifShimmer 3s ease-in-out 1s infinite;
 }
 .home-notif.hidden { opacity: 0; transform: translateX(-50%) translateY(-20px); pointer-events: none; }
-.home-notif-icon { font-size: 22px; }
+.home-notif-icon { font-size: 22px; animation: notifIconBounce 2s ease-in-out infinite; }
 .home-notif-title { font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 600; color: #fff; }
 .home-notif-sub { font-size: 11px; color: rgba(255,255,255,0.7); }
 .home-notif-arrow { font-size: 20px; color: #fff; animation: arrowBounce 1s ease-in-out infinite; }
 @keyframes arrowBounce { 0%,100% { transform: translateX(0); } 50% { transform: translateX(6px); } }
-@keyframes notifSlide { from { opacity: 0; transform: translateX(-50%) translateY(-30px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+@keyframes notifSlide { from { opacity: 0; transform: translateX(-50%) translateY(-30px) scale(0.9); } to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } }
+@keyframes notifFloat { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-5px); } }
+@keyframes notifGlow {
+    0%,100% { box-shadow: 0 4px 20px rgba(26,115,232,0.4), 0 0 0 1px rgba(255,255,255,0.1); }
+    50% { box-shadow: 0 4px 30px rgba(26,115,232,0.7), 0 0 15px rgba(100,180,255,0.3), 0 0 0 1px rgba(255,255,255,0.2); }
+}
+@keyframes notifShimmer { 0% { left: -100%; } 100% { left: 200%; } }
+@keyframes notifIconBounce { 0%,100% { transform: scale(1) rotate(0deg); } 25% { transform: scale(1.15) rotate(-5deg); } 50% { transform: scale(1) rotate(0deg); } 75% { transform: scale(1.1) rotate(5deg); } }
 
 /* ─── MAIN CANVAS ─── */
 #gameCanvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1; image-rendering: pixelated; }
