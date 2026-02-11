@@ -939,11 +939,6 @@ const App = {
 
         const px = (x, y, w, h) => ctx.fillRect(x * S, y * S, w * S, h * S);
         const animSpeed = running ? 1.2 : 0.8;
-        const armSwing = walking ? Math.sin(ch.frame * animSpeed) * 3.5 : 0;
-        const legSwing = walking ? Math.sin(ch.frame * animSpeed) * 3 : 0;
-        // In-air pose
-        const airLeg = airborne ? (ch.vy < 0 ? -2 : 1) : 0;
-        const airArm = airborne ? (ch.vy < 0 ? -3 : 2) : 0;
 
         // ═══ HAIR ═══
         ctx.fillStyle = '#1a1a1a';
@@ -984,23 +979,36 @@ const App = {
         // ═══ SLEEVES ═══
         ctx.fillStyle = '#FFB74D'; px(-7, -11, 2, 3); px(5, -11, 2, 3);
 
-        // ═══ ARMS ═══
-        ctx.fillStyle = '#8D6E4C';
-        const la = airborne ? airArm : armSwing;
-        const ra = airborne ? -airArm : -armSwing;
-        ctx.fillRect(-7 * S, (-8 + la) * S, 2 * S, 6 * S);
-        ctx.fillRect(5 * S, (-8 + ra) * S, 2 * S, 6 * S);
+        // ═══ LEFT ARM + HAND (rotate from shoulder) ═══
+        const armAngleL = airborne ? (ch.vy < 0 ? -0.5 : 0.3) : walking ? Math.sin(ch.frame * animSpeed) * 0.45 : Math.sin(t * 1.2) * 0.04;
+        const armAngleR = airborne ? (ch.vy < 0 ? 0.5 : -0.3) : walking ? -Math.sin(ch.frame * animSpeed) * 0.45 : -Math.sin(t * 1.2) * 0.04;
 
-        // ═══ HANDS ═══
+        // Left arm
+        ctx.save();
+        ctx.translate(-6 * S, -10 * S); // shoulder pivot
+        ctx.rotate(armAngleL);
+        ctx.fillStyle = '#8D6E4C';
+        ctx.fillRect(-1 * S, 0, 2 * S, 6 * S); // arm
         if (ch.drinking) {
-            ctx.fillStyle = '#FFD54F';
-            ctx.fillRect(-7 * S, (-2 + la) * S, 2 * S, 2 * S);
-            ctx.fillRect(5 * S, (-10) * S, 2 * S, 2 * S);
+            ctx.fillStyle = '#FFD54F'; ctx.fillRect(-1 * S, 6 * S, 2 * S, 2 * S);
         } else {
-            ctx.fillStyle = '#FFD54F';
-            ctx.fillRect(-7 * S, (-2 + la) * S, 2 * S, 2 * S);
-            ctx.fillRect(5 * S, (-2 + ra) * S, 2 * S, 2 * S);
+            ctx.fillStyle = '#FFD54F'; ctx.fillRect(-1 * S, 6 * S, 2 * S, 2 * S); // hand
         }
+        ctx.restore();
+
+        // Right arm
+        ctx.save();
+        ctx.translate(6 * S, -10 * S); // shoulder pivot
+        if (ch.drinking) {
+            ctx.rotate(-0.8); // raised for drinking
+            ctx.fillStyle = '#8D6E4C'; ctx.fillRect(-1 * S, 0, 2 * S, 6 * S);
+            ctx.fillStyle = '#FFD54F'; ctx.fillRect(-1 * S, 6 * S, 2 * S, 2 * S);
+        } else {
+            ctx.rotate(armAngleR);
+            ctx.fillStyle = '#8D6E4C'; ctx.fillRect(-1 * S, 0, 2 * S, 6 * S);
+            ctx.fillStyle = '#FFD54F'; ctx.fillRect(-1 * S, 6 * S, 2 * S, 2 * S);
+        }
+        ctx.restore();
 
         // ═══ SHORTS (longer) ═══
         ctx.fillStyle = '#ccc'; px(-5, -2, 10, 4);
@@ -1008,25 +1016,29 @@ const App = {
         // Belt
         ctx.fillStyle = '#888'; px(-5, -2, 10, 1);
 
-        // ═══ LEGS (longer) ═══
-        ctx.fillStyle = '#8D6E4C';
-        const ll = airborne ? airLeg : legSwing;
-        const rl = airborne ? -airLeg : -legSwing;
-        ctx.fillRect(-4 * S, (2 + ll) * S, 3 * S, 6 * S);
-        ctx.fillRect(1 * S, (2 + rl) * S, 3 * S, 6 * S);
+        // ═══ LEGS (rotate from hip) ═══
+        const legAngleL = airborne ? (ch.vy < 0 ? -0.3 : 0.15) : walking ? Math.sin(ch.frame * animSpeed) * 0.38 : 0;
+        const legAngleR = airborne ? (ch.vy < 0 ? 0.3 : -0.15) : walking ? -Math.sin(ch.frame * animSpeed) * 0.38 : 0;
 
-        // ═══ SHOES (chunkier) ═══
-        ctx.fillStyle = '#222';
-        ctx.fillRect(-5 * S, (8 + ll) * S, 4 * S, 3 * S);
-        ctx.fillRect(1 * S, (8 + rl) * S, 4 * S, 3 * S);
-        // Shoe soles
-        ctx.fillStyle = '#FF8A80';
-        ctx.fillRect(-5 * S, (10 + ll) * S, 4 * S, 1 * S);
-        ctx.fillRect(1 * S, (10 + rl) * S, 4 * S, 1 * S);
-        // Shoe laces
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(-4 * S, (8 + ll) * S, 2 * S, 1 * S);
-        ctx.fillRect(2 * S, (8 + rl) * S, 2 * S, 1 * S);
+        // Left leg
+        ctx.save();
+        ctx.translate(-2.5 * S, 2 * S); // hip pivot
+        ctx.rotate(legAngleL);
+        ctx.fillStyle = '#8D6E4C'; ctx.fillRect(-1.5 * S, 0, 3 * S, 6 * S);
+        ctx.fillStyle = '#222'; ctx.fillRect(-2 * S, 6 * S, 4 * S, 3 * S); // shoe
+        ctx.fillStyle = '#FF8A80'; ctx.fillRect(-2 * S, 8 * S, 4 * S, 1 * S); // sole
+        ctx.fillStyle = '#fff'; ctx.fillRect(-1 * S, 6 * S, 2 * S, 1 * S); // lace
+        ctx.restore();
+
+        // Right leg
+        ctx.save();
+        ctx.translate(2.5 * S, 2 * S); // hip pivot
+        ctx.rotate(legAngleR);
+        ctx.fillStyle = '#8D6E4C'; ctx.fillRect(-1.5 * S, 0, 3 * S, 6 * S);
+        ctx.fillStyle = '#222'; ctx.fillRect(-2 * S, 6 * S, 4 * S, 3 * S);
+        ctx.fillStyle = '#FF8A80'; ctx.fillRect(-2 * S, 8 * S, 4 * S, 1 * S);
+        ctx.fillStyle = '#fff'; ctx.fillRect(-1 * S, 6 * S, 2 * S, 1 * S);
+        ctx.restore();
 
         ctx.restore();
 
