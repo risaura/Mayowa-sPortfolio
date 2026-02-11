@@ -7,7 +7,7 @@
 const Loader = {
     scene: null, camera: null, renderer: null,
     planets: [], sun: null, asteroids: null,
-    shootingStars: [], comet: null,
+    shootingStars: [],
 
     init() {
         const canvas = document.getElementById('loaderCanvas');
@@ -30,7 +30,6 @@ const Loader = {
         this.createSun();
         this.createPlanets();
         this.createAsteroidBelt();
-        this.createComet();
 
         window.addEventListener('resize', () => {
             this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -243,45 +242,93 @@ const Loader = {
     createSun() {
         const sunGroup = new THREE.Group();
 
-        // Core sphere
-        const sunGeo = new THREE.SphereGeometry(6, 48, 48);
-        const sunMat = new THREE.MeshBasicMaterial({ color: 0xFDB813 });
+        // ── Realistic surface texture ──
+        const surfaceCanvas = document.createElement('canvas');
+        surfaceCanvas.width = 512; surfaceCanvas.height = 256;
+        const sctx = surfaceCanvas.getContext('2d');
+        // Base hot yellow-orange
+        const baseGrad = sctx.createLinearGradient(0, 0, 512, 256);
+        baseGrad.addColorStop(0, '#FFD54F'); baseGrad.addColorStop(0.3, '#FFAB00');
+        baseGrad.addColorStop(0.6, '#FF8F00'); baseGrad.addColorStop(1, '#E65100');
+        sctx.fillStyle = baseGrad; sctx.fillRect(0, 0, 512, 256);
+        // Granulation (convection cells)
+        for (let i = 0; i < 300; i++) {
+            const gx = Math.random() * 512, gy = Math.random() * 256;
+            const gr = 3 + Math.random() * 8;
+            const bright = Math.random() > 0.5 ? 'rgba(255,240,200,' : 'rgba(200,100,20,';
+            sctx.fillStyle = bright + (0.1 + Math.random() * 0.15) + ')';
+            sctx.beginPath(); sctx.arc(gx, gy, gr, 0, Math.PI * 2); sctx.fill();
+        }
+        // Sunspots
+        for (let i = 0; i < 5; i++) {
+            const sx = 80 + Math.random() * 350, sy = 50 + Math.random() * 150;
+            const sr = 4 + Math.random() * 12;
+            sctx.fillStyle = 'rgba(80,30,0,0.5)';
+            sctx.beginPath(); sctx.arc(sx, sy, sr, 0, Math.PI * 2); sctx.fill();
+            sctx.fillStyle = 'rgba(40,10,0,0.6)';
+            sctx.beginPath(); sctx.arc(sx, sy, sr * 0.5, 0, Math.PI * 2); sctx.fill();
+        }
+        // Active regions (bright patches)
+        for (let i = 0; i < 8; i++) {
+            sctx.fillStyle = 'rgba(255,255,200,' + (0.08 + Math.random() * 0.1) + ')';
+            sctx.beginPath();
+            sctx.ellipse(Math.random() * 512, Math.random() * 256, 20 + Math.random() * 40, 10 + Math.random() * 15, Math.random() * Math.PI, 0, Math.PI * 2);
+            sctx.fill();
+        }
+        const sunTex = new THREE.CanvasTexture(surfaceCanvas);
+        sunTex.wrapS = THREE.RepeatWrapping;
+
+        // ── Core sphere with realistic texture ──
+        const sunGeo = new THREE.SphereGeometry(8, 64, 64);
+        const sunMat = new THREE.MeshBasicMaterial({ map: sunTex });
         this.sun = new THREE.Mesh(sunGeo, sunMat);
         sunGroup.add(this.sun);
 
-        // Surface detail — slightly larger wireframe
-        const wireGeo = new THREE.SphereGeometry(6.1, 20, 20);
-        const wireMat = new THREE.MeshBasicMaterial({
-            color: 0xFF8C00, wireframe: true, transparent: true, opacity: 0.15,
+        // ── Chromosphere (thin red-orange shell) ──
+        const chromoGeo = new THREE.SphereGeometry(8.15, 48, 48);
+        const chromoMat = new THREE.MeshBasicMaterial({
+            color: 0xFF6D00, transparent: true, opacity: 0.08, side: THREE.FrontSide,
         });
-        sunGroup.add(new THREE.Mesh(wireGeo, wireMat));
+        sunGroup.add(new THREE.Mesh(chromoGeo, chromoMat));
 
-        // Point light
-        const light = new THREE.PointLight(0xFFF5E0, 2.5, 600);
+        // ── Limb darkening shell ──
+        const limbCanvas = document.createElement('canvas');
+        limbCanvas.width = 256; limbCanvas.height = 256;
+        const lctx = limbCanvas.getContext('2d');
+        const limbGrad = lctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+        limbGrad.addColorStop(0, 'rgba(0,0,0,0)');
+        limbGrad.addColorStop(0.6, 'rgba(0,0,0,0)');
+        limbGrad.addColorStop(0.85, 'rgba(80,20,0,0.15)');
+        limbGrad.addColorStop(1, 'rgba(60,10,0,0.4)');
+        lctx.fillStyle = limbGrad; lctx.fillRect(0, 0, 256, 256);
+
+        // ── Point light (brighter) ──
+        const light = new THREE.PointLight(0xFFF5E0, 3.0, 800);
         sunGroup.add(light);
 
-        // Inner corona
-        const corona1 = this.makeGlow(253, 184, 19, 30, 0.9);
+        // ── Inner corona (hot white-yellow) ──
+        const corona1 = this.makeGlow(255, 240, 200, 35, 0.8);
         sunGroup.add(corona1);
 
-        // Mid corona
-        const corona2 = this.makeGlow(255, 160, 50, 55, 0.4);
+        // ── Mid corona (amber) ──
+        const corona2 = this.makeGlow(255, 180, 60, 60, 0.35);
         sunGroup.add(corona2);
 
-        // Outer corona (huge, faint)
-        const corona3 = this.makeGlow(255, 120, 30, 90, 0.15);
+        // ── Outer corona (vast, faint reddish) ──
+        const corona3 = this.makeGlow(255, 120, 40, 110, 0.12);
         sunGroup.add(corona3);
 
-        // Solar flares — elongated sprites
+        // ── Solar prominences (large arcing flares) ──
         this.solarFlares = [];
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 6; i++) {
             const c = document.createElement('canvas');
             c.width = 256; c.height = 64;
             const ctx = c.getContext('2d');
             const g = ctx.createRadialGradient(30, 32, 0, 128, 32, 128);
-            g.addColorStop(0, 'rgba(255,200,50,0.8)');
-            g.addColorStop(0.3, 'rgba(255,140,30,0.3)');
-            g.addColorStop(1, 'rgba(255,80,0,0)');
+            g.addColorStop(0, 'rgba(255,200,80,0.9)');
+            g.addColorStop(0.2, 'rgba(255,150,40,0.4)');
+            g.addColorStop(0.5, 'rgba(255,100,20,0.1)');
+            g.addColorStop(1, 'rgba(255,60,0,0)');
             ctx.fillStyle = g;
             ctx.fillRect(0, 0, 256, 64);
             const tex = new THREE.CanvasTexture(c);
@@ -290,12 +337,12 @@ const Loader = {
                 blending: THREE.AdditiveBlending,
                 depthWrite: false, opacity: 0,
             }));
-            flare.scale.set(20, 3, 1);
+            flare.scale.set(25, 4, 1);
             flare.userData = {
-                angle: (i / 5) * Math.PI * 2,
-                speed: 0.1 + Math.random() * 0.2,
+                angle: (i / 6) * Math.PI * 2,
+                speed: 0.08 + Math.random() * 0.15,
                 phase: Math.random() * Math.PI * 2,
-                maxOpacity: 0.3 + Math.random() * 0.4,
+                maxOpacity: 0.4 + Math.random() * 0.4,
             };
             sunGroup.add(flare);
             this.solarFlares.push(flare);
@@ -308,14 +355,14 @@ const Loader = {
     /* ═══════════ PLANETS ═══════════ */
     createPlanets() {
         const data = [
-            { name:'Mercury', r:0.4,  orbit:14,  speed:4.15,  base:[140,130,120], detail:'rocky' },
-            { name:'Venus',   r:0.85, orbit:19,  speed:1.62,  base:[230,190,100], detail:'cloudy' },
-            { name:'Earth',   r:1.0,  orbit:26,  speed:1.0,   base:[60,120,200],  detail:'earth', moon:true },
-            { name:'Mars',    r:0.6,  orbit:34,  speed:0.53,  base:[190,80,30],   detail:'rocky' },
-            { name:'Jupiter', r:3.0,  orbit:52,  speed:0.084, base:[200,180,140], detail:'banded' },
-            { name:'Saturn',  r:2.4,  orbit:70,  speed:0.034, base:[220,200,170], detail:'banded', rings:true },
-            { name:'Uranus',  r:1.5,  orbit:88,  speed:0.012, base:[170,220,230], detail:'smooth' },
-            { name:'Neptune', r:1.4,  orbit:105, speed:0.006, base:[60,70,220],   detail:'smooth' },
+            { name:'Mercury', r:1.0,  orbit:16,  speed:4.15,  base:[140,130,120], detail:'rocky' },
+            { name:'Venus',   r:2.0,  orbit:22,  speed:1.62,  base:[230,190,100], detail:'cloudy' },
+            { name:'Earth',   r:2.5,  orbit:30,  speed:1.0,   base:[60,120,200],  detail:'earth', moon:true },
+            { name:'Mars',    r:1.5,  orbit:38,  speed:0.53,  base:[190,80,30],   detail:'rocky' },
+            { name:'Jupiter', r:6.5,  orbit:58,  speed:0.084, base:[200,180,140], detail:'banded' },
+            { name:'Saturn',  r:5.0,  orbit:78,  speed:0.034, base:[220,200,170], detail:'banded', rings:true },
+            { name:'Uranus',  r:3.5,  orbit:96,  speed:0.012, base:[170,220,230], detail:'smooth' },
+            { name:'Neptune', r:3.2,  orbit:112, speed:0.006, base:[60,70,220],   detail:'smooth' },
         ];
 
         data.forEach(p => {
@@ -369,7 +416,7 @@ const Loader = {
             // Earth's moon
             if (p.moon) {
                 const moonTex = this.generatePlanetTexture([180, 180, 180], 'rocky');
-                const moonGeo = new THREE.SphereGeometry(0.27, 16, 16);
+                const moonGeo = new THREE.SphereGeometry(0.6, 16, 16);
                 const moonMat = new THREE.MeshStandardMaterial({ map: moonTex, roughness: 0.95 });
                 const moonMesh = new THREE.Mesh(moonGeo, moonMat);
                 group.userData.moon = moonMesh;
@@ -494,7 +541,7 @@ const Loader = {
         const col = new Float32Array(count * 3);
         for (let i = 0; i < count; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const r = 40 + Math.random() * 8; // Between Mars and Jupiter
+            const r = 46 + Math.random() * 8; // Between Mars and Jupiter
             pos[i * 3] = Math.cos(angle) * r + (Math.random() - 0.5) * 3;
             pos[i * 3 + 1] = (Math.random() - 0.5) * 3;
             pos[i * 3 + 2] = Math.sin(angle) * r + (Math.random() - 0.5) * 3;
@@ -509,30 +556,6 @@ const Loader = {
         this.scene.add(this.asteroids);
     },
 
-    /* ═══════════ COMET ═══════════ */
-    createComet() {
-        const cometGroup = new THREE.Group();
-
-        // Comet head
-        const headGeo = new THREE.SphereGeometry(0.6, 12, 12);
-        const headMat = new THREE.MeshBasicMaterial({ color: 0xCCDDFF });
-        cometGroup.add(new THREE.Mesh(headGeo, headMat));
-
-        // Comet glow
-        cometGroup.add(this.makeGlow(180, 200, 255, 5, 0.6));
-
-        // Tail — series of fading sprites
-        for (let i = 1; i <= 12; i++) {
-            const tailSprite = this.makeGlow(150, 180, 255, 2 + i * 0.8, 0.3 - i * 0.02);
-            tailSprite.position.set(-i * 2.5, i * 0.3, 0);
-            cometGroup.add(tailSprite);
-        }
-
-        cometGroup.position.set(-200, 60, -100);
-        this.comet = cometGroup;
-        this.scene.add(cometGroup);
-    },
-
     /* ═══════════ ANIMATE ═══════════ */
     animate() {
         if (document.getElementById('loader').classList.contains('done')) {
@@ -544,12 +567,13 @@ const Loader = {
 
         // Rotate sun + surface shimmer
         if (this.sun) {
-            this.sun.rotation.y = t * 0.15;
-            // Pulsing corona — scale the glow sprites
-            const pulse = 1 + Math.sin(t * 1.5) * 0.08;
+            this.sun.rotation.y = t * 0.1;
+            // Pulsing corona
+            const pulse = 1 + Math.sin(t * 1.2) * 0.06;
             const s = this.sunGroup;
-            if (s.children[3]) s.children[3].scale.setScalar(30 * pulse);
-            if (s.children[4]) s.children[4].scale.setScalar(55 * (2 - pulse));
+            if (s.children[3]) s.children[3].scale.setScalar(35 * pulse);
+            if (s.children[4]) s.children[4].scale.setScalar(60 * (2 - pulse));
+            if (s.children[5]) s.children[5].scale.setScalar(110 * (1 + Math.sin(t * 0.8) * 0.04));
         }
 
         // Solar flares
@@ -559,7 +583,7 @@ const Loader = {
                 const anim = Math.sin(t * d.speed + d.phase);
                 f.material.opacity = Math.max(0, anim * d.maxOpacity);
                 const a = d.angle + t * 0.05;
-                f.position.set(Math.cos(a) * 8, Math.sin(a) * 8, 0);
+                f.position.set(Math.cos(a) * 10, Math.sin(a) * 10, 0);
                 f.material.rotation = a;
             });
         }
@@ -574,9 +598,9 @@ const Loader = {
 
             if (p.group.userData.moon) {
                 p.group.userData.moon.position.set(
-                    Math.cos(t * 1.8) * 2.5,
-                    0.2,
-                    Math.sin(t * 1.8) * 2.5
+                    Math.cos(t * 1.8) * 5,
+                    0.3,
+                    Math.sin(t * 1.8) * 5
                 );
             }
         });
@@ -587,16 +611,6 @@ const Loader = {
         // Milky way very slow drift
         if (this.milkyWay) this.milkyWay.rotation.y += 0.00005;
 
-        // Comet movement
-        if (this.comet) {
-            this.comet.position.x += 0.15;
-            this.comet.position.y -= 0.02;
-            this.comet.position.z += 0.05;
-            if (this.comet.position.x > 250) {
-                this.comet.position.set(-200, 60 + Math.random() * 40, -100 + Math.random() * 80);
-            }
-        }
-
         // Star twinkle — shift layer opacity
         if (this.starLayers) {
             this.starLayers.forEach((layer, i) => {
@@ -605,9 +619,9 @@ const Loader = {
         }
 
         // Cinematic camera orbit
-        const camRadius = 100 + Math.sin(t * 0.04) * 50;
-        const camAngle = t * 0.06;
-        const camY = 30 + Math.sin(t * 0.1) * 25;
+        const camRadius = 120 + Math.sin(t * 0.04) * 60;
+        const camAngle = t * 0.05;
+        const camY = 35 + Math.sin(t * 0.1) * 30;
         this.camera.position.set(
             Math.sin(camAngle) * camRadius,
             camY,
