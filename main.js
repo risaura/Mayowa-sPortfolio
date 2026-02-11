@@ -84,6 +84,8 @@ const App = {
         // UI Buttons
         document.getElementById('musicToggle').addEventListener('click', () => this.toggleMusic());
         document.getElementById('achievementsBtn').addEventListener('click', () => this.openModal('achievementsModal'));
+        document.getElementById('aboutBtn').addEventListener('click', () => { this.openModal('aboutModal'); Achievements.visitSection('about'); });
+        document.getElementById('gamesBtn').addEventListener('click', () => { this.openModal('gamesModal'); Achievements.visitSection('games'); });
 
         // Close buttons
         document.querySelectorAll('[data-close]').forEach(btn => {
@@ -124,7 +126,6 @@ const App = {
         // Initialize scene
         this.initTrees();
         this.initClouds();
-        this.initSigns();
         this.initHouse();
         this.initVendingMachine();
         this.initPetals();
@@ -346,13 +347,6 @@ const App = {
         }
     },
 
-    initSigns() {
-        this.signs = [
-            { x: 400, label: 'ABOUT ME', action: 'about', emoji: '📜' },
-            { x: 1250, label: 'GAMES', action: 'games', emoji: '🎮' },
-        ];
-    },
-
     initHouse() {
         this.house = { x: 1900, w: 260, h: 200, roofH: 80, doorW: 50, doorH: 70 };
     },
@@ -546,7 +540,6 @@ const App = {
         this.drawTrees(t, cam, nf);
         this.drawHouse(t, cam, nf);
         this.drawVendingMachine(t, cam, nf);
-        this.drawSigns(t, cam);
         this.drawCharacter(t, cam);
         this.drawPetals(cam);
         this.drawVignette();
@@ -580,12 +573,85 @@ const App = {
         const { ctx, W } = this;
         const cx = W * 0.82, cy = 65, r = 38;
         if (nf < 0.5) {
-            ctx.globalAlpha = 1 - nf * 2;
-            const glow = ctx.createRadialGradient(cx, cy, r * 0.5, cx, cy, r * 3);
-            glow.addColorStop(0, 'rgba(255,200,50,0.3)'); glow.addColorStop(1, 'rgba(255,200,50,0)');
-            ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, r * 3, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#FFE082'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+            const dayAlpha = 1 - nf * 2;
+            ctx.globalAlpha = dayAlpha;
+
+            // ── Outer haze (atmospheric scattering) ──
+            const haze = ctx.createRadialGradient(cx, cy, r * 0.5, cx, cy, r * 6);
+            haze.addColorStop(0, 'rgba(255,230,150,0.15)');
+            haze.addColorStop(0.4, 'rgba(255,200,100,0.06)');
+            haze.addColorStop(1, 'rgba(255,180,80,0)');
+            ctx.fillStyle = haze; ctx.beginPath(); ctx.arc(cx, cy, r * 6, 0, Math.PI * 2); ctx.fill();
+
+            // ── Rotating sun rays ──
+            ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * 0.08);
+            for (let i = 0; i < 12; i++) {
+                const angle = (i / 12) * Math.PI * 2;
+                const rayLen = r * 2.5 + Math.sin(t * 1.5 + i * 1.3) * r * 0.6;
+                const rayW = 0.06 + Math.sin(t * 2 + i) * 0.02;
+                const rg = ctx.createRadialGradient(0, 0, r * 0.8, 0, 0, rayLen);
+                rg.addColorStop(0, 'rgba(255,220,100,0.2)');
+                rg.addColorStop(1, 'rgba(255,200,50,0)');
+                ctx.fillStyle = rg;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(angle - rayW) * r * 0.8, Math.sin(angle - rayW) * r * 0.8);
+                ctx.lineTo(Math.cos(angle) * rayLen, Math.sin(angle) * rayLen);
+                ctx.lineTo(Math.cos(angle + rayW) * r * 0.8, Math.sin(angle + rayW) * r * 0.8);
+                ctx.closePath(); ctx.fill();
+            }
+            ctx.restore();
+
+            // ── Corona glow ──
+            const corona = ctx.createRadialGradient(cx, cy, r * 0.6, cx, cy, r * 2.5);
+            corona.addColorStop(0, 'rgba(255,210,80,0.5)');
+            corona.addColorStop(0.3, 'rgba(255,180,50,0.2)');
+            corona.addColorStop(0.7, 'rgba(255,140,30,0.05)');
+            corona.addColorStop(1, 'rgba(255,120,20,0)');
+            ctx.fillStyle = corona; ctx.beginPath(); ctx.arc(cx, cy, r * 2.5, 0, Math.PI * 2); ctx.fill();
+
+            // ── Sun body (gradient from center to edge) ──
+            const body = ctx.createRadialGradient(cx - r * 0.15, cy - r * 0.15, r * 0.1, cx, cy, r);
+            body.addColorStop(0, '#FFFDE7');
+            body.addColorStop(0.3, '#FFE082');
+            body.addColorStop(0.7, '#FFB300');
+            body.addColorStop(0.9, '#FF8F00');
+            body.addColorStop(1, '#E65100');
+            ctx.fillStyle = body; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+
+            // ── Limb darkening (edge is darker) ──
+            const limb = ctx.createRadialGradient(cx, cy, r * 0.5, cx, cy, r);
+            limb.addColorStop(0, 'rgba(255,255,255,0)');
+            limb.addColorStop(0.7, 'rgba(0,0,0,0)');
+            limb.addColorStop(1, 'rgba(120,50,0,0.25)');
+            ctx.fillStyle = limb; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+
+            // ── Sunspots (subtle dark patches) ──
+            ctx.fillStyle = 'rgba(180,100,20,0.15)';
+            ctx.beginPath(); ctx.arc(cx - 8, cy + 5, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(cx + 12, cy - 3, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(cx + 4, cy + 10, 2.5, 0, Math.PI * 2); ctx.fill();
+
+            // ── Inner brightness (hot center) ──
+            const hot = ctx.createRadialGradient(cx - 5, cy - 5, 0, cx, cy, r * 0.5);
+            hot.addColorStop(0, 'rgba(255,255,255,0.35)');
+            hot.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = hot; ctx.beginPath(); ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2); ctx.fill();
+
+            // ── Lens flare (small streaks) ──
+            const flareDist = r * 3;
+            const flareAngle = Math.PI * 0.25;
+            for (let i = 1; i <= 3; i++) {
+                const fx = cx + Math.cos(flareAngle) * flareDist * i * 0.4;
+                const fy = cy + Math.sin(flareAngle) * flareDist * i * 0.4;
+                const fr = 3 + i * 2;
+                const fg = ctx.createRadialGradient(fx, fy, 0, fx, fy, fr);
+                fg.addColorStop(0, `rgba(255,240,200,${0.15 - i * 0.03})`);
+                fg.addColorStop(1, 'rgba(255,240,200,0)');
+                ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(fx, fy, fr, 0, Math.PI * 2); ctx.fill();
+            }
+
         } else {
+            // ── Moon (unchanged) ──
             ctx.globalAlpha = (nf - 0.5) * 2;
             const glow = ctx.createRadialGradient(cx, cy, r * 0.5, cx, cy, r * 2.5);
             glow.addColorStop(0, 'rgba(200,200,220,0.2)'); glow.addColorStop(1, 'rgba(200,200,220,0)');
@@ -869,61 +935,25 @@ const App = {
         vm._screenH = vm.h;
     },
 
-    /* ═══════════ SIGNS ═══════════ */
-
-    drawSigns(t, cam) {
-        const { ctx, H } = this;
-        const gy = H - 80;
-
-        this.signs.forEach(sign => {
-            const sx = sign.x - cam;
-            if (sx < -120 || sx > this.W + 120) return;
-            const hover = Math.sin(t * 2) * 3;
-
-            ctx.fillStyle = '#5D4037'; ctx.fillRect(sx - 6, gy - 140, 12, 140);
-            ctx.fillStyle = '#3E2723'; ctx.fillRect(sx - 8, gy - 142, 16, 7);
-
-            const bw = 190, bh = 65;
-            const bx = sx - bw / 2, by = gy - 200 + hover;
-
-            ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(bx + 4, by + 4, bw, bh);
-            ctx.fillStyle = '#6D4C41'; ctx.fillRect(bx, by, bw, bh);
-            ctx.fillStyle = '#8D6E63'; ctx.fillRect(bx, by, bw, 7);
-            ctx.strokeStyle = '#3E2723'; ctx.lineWidth = 3; ctx.strokeRect(bx, by, bw, bh);
-
-            ctx.fillStyle = '#aaa';
-            [[bx + 10, by + 10], [bx + bw - 10, by + 10]].forEach(([nx, ny]) => {
-                ctx.beginPath(); ctx.arc(nx, ny, 3.5, 0, Math.PI * 2); ctx.fill();
-            });
-
-            ctx.fillStyle = '#FFD54F'; ctx.font = 'bold 16px "Press Start 2P"'; ctx.textAlign = 'center';
-            ctx.shadowColor = 'rgba(255,213,79,0.4)'; ctx.shadowBlur = 10;
-            ctx.fillText(sign.emoji + ' ' + sign.label, sx, by + 42);
-            ctx.shadowBlur = 0;
-
-            sign._screenX = bx; sign._screenY = by; sign._screenW = bw; sign._screenH = bh;
-        });
-    },
-
-    /* ═══════════ PIXEL CHARACTER (BIGGER) ═══════════ */
+    /* ═══════════ PIXEL CHARACTER ═══════════ */
 
     drawCharacter(t, cam) {
         const { ctx, H } = this;
         const ch = this.character;
         const sx = ch.x - cam;
         const sy = ch.y;
-        const S = 5; // Big pixel scale
+        const S = 5;
         const walking = Math.abs(ch.vx) > 0.5;
         const running = Math.abs(ch.vx) > 4;
         const airborne = !ch.grounded;
         const breathe = ch.grounded ? Math.sin(t * 2) * 1.5 : 0;
 
-        // ── Dust particles when skidding ──
+        // Dust particles when skidding
         if (walking && ch.grounded && Math.abs(ch.vx) > 2) {
             ctx.globalAlpha = 0.3;
             for (let i = 0; i < 3; i++) {
                 const dx = sx - ch.dir * (10 + Math.random() * 20);
-                const dy = sy + 12 * S * ch.stretch - 5 + Math.random() * 10;
+                const dy = sy + 55 + Math.random() * 10;
                 const dr = 2 + Math.random() * 4;
                 ctx.fillStyle = 'rgba(200,180,150,0.5)';
                 ctx.beginPath(); ctx.arc(dx, dy, dr, 0, Math.PI * 2); ctx.fill();
@@ -933,116 +963,86 @@ const App = {
 
         ctx.save();
         ctx.translate(sx, sy + breathe);
-
-        // ── Squash & Stretch transform ──
         ctx.scale(ch.dir * ch.squash, ch.stretch);
 
         const px = (x, y, w, h) => ctx.fillRect(x * S, y * S, w * S, h * S);
         const animSpeed = running ? 1.2 : 0.8;
 
-        // ═══ HAIR ═══
+        // Smooth limb offsets (Y only — no rotation means no gaps)
+        const limbPhase = ch.frame * animSpeed;
+        const swing = walking ? Math.sin(limbPhase) : 0;
+        const armOffL = airborne ? (ch.vy < 0 ? -2 : 1) : swing * 2.5;
+        const armOffR = airborne ? (ch.vy < 0 ? 2 : -1) : -swing * 2.5;
+        const legOffL = airborne ? (ch.vy < 0 ? -1.5 : 0.8) : swing * 2;
+        const legOffR = airborne ? (ch.vy < 0 ? 1.5 : -0.8) : -swing * 2;
+
+        // DRAW ORDER: back leg -> back arm -> body -> front leg -> front arm
+
+        // BACK LEG (slightly darker for depth)
+        ctx.fillStyle = '#7a5e3c';
+        ctx.fillRect(1 * S, (2 + legOffR) * S, 3 * S, 6 * S);
+        ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0 * S, (8 + legOffR) * S, 4 * S, 3 * S);
+        ctx.fillStyle = '#e06060'; ctx.fillRect(0 * S, (10 + legOffR) * S, 4 * S, 1 * S);
+
+        // BACK ARM (slightly darker)
+        ctx.fillStyle = '#7a5e3c';
+        ctx.fillRect(5 * S, (-8 + armOffR) * S, 2 * S, 6 * S);
+        ctx.fillStyle = '#e6c35a'; ctx.fillRect(5 * S, (-2 + armOffR) * S, 2 * S, 2 * S);
+
+        // HAIR
         ctx.fillStyle = '#1a1a1a';
         px(-5, -28, 10, 6); px(-6, -26, 12, 4); px(-6, -22, 2, 11); px(4, -22, 2, 11); px(-6, -22, 2, 14);
-        // Hair highlight
         ctx.fillStyle = '#333'; px(-3, -28, 4, 2);
-
-        // Red hair accessory
         ctx.fillStyle = '#e53935'; px(-5, -25, 2, 2);
 
-        // ═══ FACE ═══
+        // FACE
         ctx.fillStyle = '#8D6E4C'; px(-4, -22, 8, 9);
-        // Eyes (blink every 4 seconds)
         const blink = Math.sin(t * 0.8) > 0.97;
         if (blink) {
             ctx.fillStyle = '#5a4030'; px(-3, -19, 2, 1); px(1, -19, 2, 1);
         } else {
             ctx.fillStyle = '#111'; px(-3, -19, 2, 2); px(1, -19, 2, 2);
-            ctx.fillStyle = '#fff'; px(-3, -19, 1, 1); px(1, -19, 1, 1); // eye highlights
+            ctx.fillStyle = '#fff'; px(-3, -19, 1, 1); px(1, -19, 1, 1);
         }
-        // Eyebrows
         ctx.fillStyle = '#333'; px(-3, -21, 2, 1); px(1, -21, 2, 1);
-        // Mouth
         ctx.fillStyle = '#fff'; px(-2, -15, 4, 1);
-        // Nose
         ctx.fillStyle = '#7a5e3c'; px(0, -17, 1, 2);
 
-        // ═══ NECK ═══
+        // NECK
         ctx.fillStyle = '#8D6E4C'; px(-2, -13, 4, 2);
 
-        // ═══ TORSO (longer) ═══
+        // TORSO (covers arm/leg connections)
         ctx.fillStyle = '#FFB74D'; px(-5, -11, 10, 3);
         ctx.fillStyle = '#FF9800'; px(-5, -8, 10, 4);
         ctx.fillStyle = '#F57C00'; px(-5, -4, 10, 2);
-        // Shirt stripe detail
         ctx.fillStyle = '#FFD54F'; px(-4, -7, 8, 1);
-
-        // ═══ SLEEVES ═══
         ctx.fillStyle = '#FFB74D'; px(-7, -11, 2, 3); px(5, -11, 2, 3);
 
-        // ═══ LEFT ARM + HAND (rotate from shoulder) ═══
-        const armAngleL = airborne ? (ch.vy < 0 ? -0.5 : 0.3) : walking ? Math.sin(ch.frame * animSpeed) * 0.45 : Math.sin(t * 1.2) * 0.04;
-        const armAngleR = airborne ? (ch.vy < 0 ? 0.5 : -0.3) : walking ? -Math.sin(ch.frame * animSpeed) * 0.45 : -Math.sin(t * 1.2) * 0.04;
-
-        // Left arm
-        ctx.save();
-        ctx.translate(-6 * S, -10 * S); // shoulder pivot
-        ctx.rotate(armAngleL);
-        ctx.fillStyle = '#8D6E4C';
-        ctx.fillRect(-1 * S, 0, 2 * S, 6 * S); // arm
-        if (ch.drinking) {
-            ctx.fillStyle = '#FFD54F'; ctx.fillRect(-1 * S, 6 * S, 2 * S, 2 * S);
-        } else {
-            ctx.fillStyle = '#FFD54F'; ctx.fillRect(-1 * S, 6 * S, 2 * S, 2 * S); // hand
-        }
-        ctx.restore();
-
-        // Right arm
-        ctx.save();
-        ctx.translate(6 * S, -10 * S); // shoulder pivot
-        if (ch.drinking) {
-            ctx.rotate(-0.8); // raised for drinking
-            ctx.fillStyle = '#8D6E4C'; ctx.fillRect(-1 * S, 0, 2 * S, 6 * S);
-            ctx.fillStyle = '#FFD54F'; ctx.fillRect(-1 * S, 6 * S, 2 * S, 2 * S);
-        } else {
-            ctx.rotate(armAngleR);
-            ctx.fillStyle = '#8D6E4C'; ctx.fillRect(-1 * S, 0, 2 * S, 6 * S);
-            ctx.fillStyle = '#FFD54F'; ctx.fillRect(-1 * S, 6 * S, 2 * S, 2 * S);
-        }
-        ctx.restore();
-
-        // ═══ SHORTS (longer) ═══
+        // SHORTS (covers leg connections)
         ctx.fillStyle = '#ccc'; px(-5, -2, 10, 4);
         ctx.fillStyle = '#bbb'; px(-5, 1, 4, 1); px(1, 1, 4, 1);
-        // Belt
         ctx.fillStyle = '#888'; px(-5, -2, 10, 1);
 
-        // ═══ LEGS (rotate from hip) ═══
-        const legAngleL = airborne ? (ch.vy < 0 ? -0.3 : 0.15) : walking ? Math.sin(ch.frame * animSpeed) * 0.38 : 0;
-        const legAngleR = airborne ? (ch.vy < 0 ? 0.3 : -0.15) : walking ? -Math.sin(ch.frame * animSpeed) * 0.38 : 0;
+        // FRONT LEG
+        ctx.fillStyle = '#8D6E4C';
+        ctx.fillRect(-4 * S, (2 + legOffL) * S, 3 * S, 6 * S);
+        ctx.fillStyle = '#222'; ctx.fillRect(-5 * S, (8 + legOffL) * S, 4 * S, 3 * S);
+        ctx.fillStyle = '#FF8A80'; ctx.fillRect(-5 * S, (10 + legOffL) * S, 4 * S, 1 * S);
+        ctx.fillStyle = '#fff'; ctx.fillRect(-4 * S, (8 + legOffL) * S, 2 * S, 1 * S);
 
-        // Left leg
-        ctx.save();
-        ctx.translate(-2.5 * S, 2 * S); // hip pivot
-        ctx.rotate(legAngleL);
-        ctx.fillStyle = '#8D6E4C'; ctx.fillRect(-1.5 * S, 0, 3 * S, 6 * S);
-        ctx.fillStyle = '#222'; ctx.fillRect(-2 * S, 6 * S, 4 * S, 3 * S); // shoe
-        ctx.fillStyle = '#FF8A80'; ctx.fillRect(-2 * S, 8 * S, 4 * S, 1 * S); // sole
-        ctx.fillStyle = '#fff'; ctx.fillRect(-1 * S, 6 * S, 2 * S, 1 * S); // lace
-        ctx.restore();
-
-        // Right leg
-        ctx.save();
-        ctx.translate(2.5 * S, 2 * S); // hip pivot
-        ctx.rotate(legAngleR);
-        ctx.fillStyle = '#8D6E4C'; ctx.fillRect(-1.5 * S, 0, 3 * S, 6 * S);
-        ctx.fillStyle = '#222'; ctx.fillRect(-2 * S, 6 * S, 4 * S, 3 * S);
-        ctx.fillStyle = '#FF8A80'; ctx.fillRect(-2 * S, 8 * S, 4 * S, 1 * S);
-        ctx.fillStyle = '#fff'; ctx.fillRect(-1 * S, 6 * S, 2 * S, 1 * S);
-        ctx.restore();
+        // FRONT ARM
+        ctx.fillStyle = '#8D6E4C';
+        if (ch.drinking) {
+            ctx.fillRect(-7 * S, (-10) * S, 2 * S, 6 * S);
+            ctx.fillStyle = '#FFD54F'; ctx.fillRect(-7 * S, (-4) * S, 2 * S, 2 * S);
+        } else {
+            ctx.fillRect(-7 * S, (-8 + armOffL) * S, 2 * S, 6 * S);
+            ctx.fillStyle = '#FFD54F'; ctx.fillRect(-7 * S, (-2 + armOffL) * S, 2 * S, 2 * S);
+        }
 
         ctx.restore();
 
-        // Drinking animation — emoji floats above
+        // Drinking animation
         if (ch.drinking) {
             const elapsed = (performance.now() - ch.drinkTimer) / 1000;
             const drinkBob = Math.sin(elapsed * 4) * 3;
@@ -1056,24 +1056,19 @@ const App = {
                     const py = sy - 70 - i * 15 - elapsed * 10;
                     const px2 = sx + 30 + Math.sin(elapsed * 3 + i) * 8;
                     ctx.globalAlpha = Math.max(0, 0.6 - i * 0.2);
-                    ctx.fillText('✨', px2, py);
+                    ctx.fillText('\u2728', px2, py);
                 }
             }
             ctx.globalAlpha = 1;
         }
 
-        // ── Speed lines when running fast ──
+        // Speed lines
         if (running && ch.grounded) {
-            ctx.globalAlpha = 0.2;
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.2; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
             for (let i = 0; i < 4; i++) {
                 const ly = sy - 20 + i * 20;
                 const lx = sx - ch.dir * 25;
-                ctx.beginPath();
-                ctx.moveTo(lx, ly);
-                ctx.lineTo(lx - ch.dir * (15 + Math.random() * 15), ly);
-                ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx - ch.dir * (15 + Math.random() * 15), ly); ctx.stroke();
             }
             ctx.globalAlpha = 1;
         }
@@ -1085,12 +1080,11 @@ const App = {
         ctx.fillStyle = '#fff';
         ctx.fillText('Mayowa', sx, nameY);
 
-        // Jump hint (if not jumped yet)
+        // Jump hint
         if (!airborne && ch.grounded && t < 15) {
             ctx.globalAlpha = 0.4 + Math.sin(t * 3) * 0.2;
-            ctx.font = '7px "Press Start 2P"';
-            ctx.fillStyle = '#FFD54F';
-            ctx.fillText('↑ JUMP', sx, sy + 12 * S + 20);
+            ctx.font = '7px "Press Start 2P"'; ctx.fillStyle = '#FFD54F';
+            ctx.fillText('\u2191 JUMP', sx, sy + 12 * S + 20);
             ctx.globalAlpha = 1;
         }
     },
@@ -1262,17 +1256,6 @@ const App = {
         const rect = this.canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
-
-        // Signs
-        this.signs.forEach(sign => {
-            if (sign._screenX === undefined) return;
-            if (mx >= sign._screenX && mx <= sign._screenX + sign._screenW &&
-                my >= sign._screenY && my <= sign._screenY + sign._screenH) {
-                AudioManager.playSfx('click');
-                if (sign.action === 'about') { this.openModal('aboutModal'); Achievements.visitSection('about'); }
-                else if (sign.action === 'games') { this.openModal('gamesModal'); Achievements.visitSection('games'); }
-            }
-        });
 
         // House
         const h = this.house;
