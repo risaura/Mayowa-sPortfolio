@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Mayowa's Game Portfolio</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Outfit:wght@300;400;600;700&family=Pixelify+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
@@ -16,7 +16,6 @@
         <div id="loaderUI">
             <h1 id="loaderTitle">MAYOWA'S HOME</h1>
             <p id="loaderSub">GAME PORTFOLIO</p>
-            <div class="loader-rocket">🚀</div>
             <div class="loader-bar-wrap">
                 <div class="loader-bar" id="loaderBar"></div>
             </div>
@@ -37,6 +36,8 @@
 
     <!-- ═══════════ HUD ═══════════ -->
     <div id="hud" class="hidden">
+        <button id="aboutBtn" class="hud-btn">📜 About Me</button>
+        <button id="gamesBtn" class="hud-btn hud-btn-games">🎮 Games</button>
         <button id="musicToggle" class="hud-btn">🎵 Music: OFF</button>
         <button id="achievementsBtn" class="hud-btn">🏆 Achievements</button>
         <div id="coinDisplay" class="hud-coins">🪙 0</div>
