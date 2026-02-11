@@ -84,7 +84,6 @@ const App = {
         // UI Buttons
         document.getElementById('musicToggle').addEventListener('click', () => this.toggleMusic());
         document.getElementById('achievementsBtn').addEventListener('click', () => this.openModal('achievementsModal'));
-        document.getElementById('aboutBtn').addEventListener('click', () => { this.openModal('aboutModal'); Achievements.visitSection('about'); });
         document.getElementById('gamesBtn').addEventListener('click', () => { this.openModal('gamesModal'); Achievements.visitSection('games'); });
 
         // Close buttons
@@ -126,6 +125,7 @@ const App = {
         // Initialize scene
         this.initTrees();
         this.initClouds();
+        this.initSigns();
         this.initHouse();
         this.initVendingMachine();
         this.initPetals();
@@ -347,6 +347,12 @@ const App = {
         }
     },
 
+    initSigns() {
+        this.signs = [
+            { x: 400, label: 'ABOUT ME', action: 'about', emoji: '📜' },
+        ];
+    },
+
     initHouse() {
         this.house = { x: 1900, w: 260, h: 200, roofH: 80, doorW: 50, doorH: 70 };
     },
@@ -540,6 +546,7 @@ const App = {
         this.drawTrees(t, cam, nf);
         this.drawHouse(t, cam, nf);
         this.drawVendingMachine(t, cam, nf);
+        this.drawSigns(t, cam);
         this.drawCharacter(t, cam);
         this.drawPetals(cam);
         this.drawVignette();
@@ -935,6 +942,47 @@ const App = {
         vm._screenH = vm.h;
     },
 
+    /* ═══════════ SIGNS ═══════════ */
+
+    drawSigns(t, cam) {
+        const { ctx, H } = this;
+        const gy = H - 80;
+
+        this.signs.forEach(sign => {
+            const sx = sign.x - cam;
+            if (sx < -120 || sx > this.W + 120) return;
+            const hover = Math.sin(t * 2) * 3;
+
+            // Wooden post
+            ctx.fillStyle = '#5D4037'; ctx.fillRect(sx - 6, gy - 140, 12, 140);
+            ctx.fillStyle = '#3E2723'; ctx.fillRect(sx - 8, gy - 142, 16, 7);
+
+            const bw = 190, bh = 65;
+            const bx = sx - bw / 2, by = gy - 200 + hover;
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(bx + 4, by + 4, bw, bh);
+            // Board
+            ctx.fillStyle = '#6D4C41'; ctx.fillRect(bx, by, bw, bh);
+            ctx.fillStyle = '#8D6E63'; ctx.fillRect(bx, by, bw, 7);
+            ctx.strokeStyle = '#3E2723'; ctx.lineWidth = 3; ctx.strokeRect(bx, by, bw, bh);
+
+            // Nails
+            ctx.fillStyle = '#aaa';
+            [[bx + 10, by + 10], [bx + bw - 10, by + 10]].forEach(([nx, ny]) => {
+                ctx.beginPath(); ctx.arc(nx, ny, 3.5, 0, Math.PI * 2); ctx.fill();
+            });
+
+            // Text
+            ctx.fillStyle = '#FFD54F'; ctx.font = 'bold 16px "Press Start 2P"'; ctx.textAlign = 'center';
+            ctx.shadowColor = 'rgba(255,213,79,0.4)'; ctx.shadowBlur = 10;
+            ctx.fillText(sign.emoji + ' ' + sign.label, sx, by + 42);
+            ctx.shadowBlur = 0;
+
+            sign._screenX = bx; sign._screenY = by; sign._screenW = bw; sign._screenH = bh;
+        });
+    },
+
     /* ═══════════ PIXEL CHARACTER ═══════════ */
 
     drawCharacter(t, cam) {
@@ -1155,99 +1203,220 @@ const App = {
         const ctx = c.getContext('2d');
         const W = c.width, H = c.height;
         ctx.imageSmoothingEnabled = false;
+        const t = performance.now() / 1000;
 
-        // Floor
-        ctx.fillStyle = '#5D4037'; ctx.fillRect(0, H * 0.6, W, H * 0.4);
-        ctx.strokeStyle = '#4E342E'; ctx.lineWidth = 1;
-        for (let y = H * 0.6; y < H; y += 25) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-        for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x, H * 0.6); ctx.lineTo(x, H); ctx.stroke(); }
+        // ═══ FLOOR — dark metallic grid ═══
+        const floorY = H * 0.6;
+        const floorGrad = ctx.createLinearGradient(0, floorY, 0, H);
+        floorGrad.addColorStop(0, '#1a1a2e'); floorGrad.addColorStop(1, '#0d0d1a');
+        ctx.fillStyle = floorGrad; ctx.fillRect(0, floorY, W, H * 0.4);
+        // Grid lines with glow
+        ctx.strokeStyle = 'rgba(0,255,255,0.08)'; ctx.lineWidth = 1;
+        for (let y = floorY; y < H; y += 20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+        for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, floorY); ctx.lineTo(x, H); ctx.stroke(); }
+        // Perspective glow strip
+        const stripGrad = ctx.createLinearGradient(0, floorY, 0, floorY + 4);
+        stripGrad.addColorStop(0, 'rgba(0,255,255,0.3)'); stripGrad.addColorStop(1, 'rgba(0,255,255,0)');
+        ctx.fillStyle = stripGrad; ctx.fillRect(0, floorY, W, 4);
 
-        // Wall
-        const wallGrad = ctx.createLinearGradient(0, 0, 0, H * 0.6);
-        wallGrad.addColorStop(0, '#6A7FDB'); wallGrad.addColorStop(1, '#5C6BC0');
-        ctx.fillStyle = wallGrad; ctx.fillRect(0, 0, W, H * 0.6);
-        ctx.fillStyle = '#fff'; ctx.fillRect(0, H * 0.6 - 4, W, 8);
+        // ═══ WALL — dark with holographic panels ═══
+        const wallGrad = ctx.createLinearGradient(0, 0, 0, floorY);
+        wallGrad.addColorStop(0, '#0a0a1a'); wallGrad.addColorStop(0.5, '#12122a'); wallGrad.addColorStop(1, '#1a1a30');
+        ctx.fillStyle = wallGrad; ctx.fillRect(0, 0, W, floorY);
 
-        // Posters
-        ctx.fillStyle = '#1a1a2e'; ctx.fillRect(50, 30, 90, 120);
-        ctx.fillStyle = '#FF5252'; ctx.font = 'bold 14px "Press Start 2P"'; ctx.textAlign = 'center';
-        ctx.fillText('🎮', 95, 75);
-        ctx.fillStyle = '#fff'; ctx.font = '8px "Press Start 2P"'; ctx.fillText('GAME', 95, 100); ctx.fillText('ON', 95, 115);
-        ctx.strokeStyle = '#333'; ctx.lineWidth = 3; ctx.strokeRect(50, 30, 90, 120);
+        // Animated neon trim line at wall base
+        const neonHue = (Math.sin(t * 0.5) * 0.5 + 0.5);
+        const neonR = Math.floor(neonHue < 0.5 ? 0 : (neonHue - 0.5) * 2 * 255);
+        const neonG = Math.floor(255 - Math.abs(neonHue - 0.5) * 2 * 255);
+        const neonB = Math.floor(neonHue < 0.5 ? (0.5 - neonHue) * 2 * 255 : 0);
+        ctx.shadowColor = 'rgb(' + neonR + ',' + neonG + ',' + neonB + ')'; ctx.shadowBlur = 12;
+        ctx.fillStyle = 'rgb(' + neonR + ',' + neonG + ',' + neonB + ')';
+        ctx.fillRect(0, floorY - 2, W, 2);
+        ctx.shadowBlur = 0;
 
-        ctx.fillStyle = '#FFE0EC'; ctx.fillRect(170, 20, 80, 110);
-        ctx.fillStyle = '#FF6B9D'; ctx.font = 'bold 28px serif'; ctx.fillText('桜', 210, 75);
-        ctx.fillStyle = '#e91e63'; ctx.font = '7px "Press Start 2P"'; ctx.fillText('ANIME', 210, 100);
-        ctx.strokeStyle = '#f48fb1'; ctx.lineWidth = 2; ctx.strokeRect(170, 20, 80, 110);
+        // Wall hex pattern (subtle)
+        ctx.globalAlpha = 0.04; ctx.strokeStyle = '#00ffff';
+        for (let r = 0; r < 8; r++) {
+            for (let col = 0; col < 12; col++) {
+                const hx = col * 65 + (r % 2) * 32;
+                const hy = r * 42 + 15;
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const a = Math.PI / 3 * i - Math.PI / 6;
+                    const px = hx + 20 * Math.cos(a), py = hy + 20 * Math.sin(a);
+                    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+                }
+                ctx.closePath(); ctx.stroke();
+            }
+        }
+        ctx.globalAlpha = 1;
 
-        ctx.fillStyle = '#2a2a2a'; ctx.fillRect(520, 25, 100, 70);
-        ctx.fillStyle = '#FF0000'; ctx.font = 'bold 11px "Press Start 2P"'; ctx.fillText('ROBLOX', 570, 55);
-        ctx.fillStyle = '#aaa'; ctx.font = '6px "Press Start 2P"'; ctx.fillText('Coming 2026', 570, 75);
-        ctx.strokeStyle = '#555'; ctx.lineWidth = 2; ctx.strokeRect(520, 25, 100, 70);
+        // ═══ HOLOGRAPHIC POSTERS ═══
+        // Gaming poster with animated border
+        const pulse1 = Math.sin(t * 3) * 0.3 + 0.7;
+        ctx.fillStyle = '#0a0a20'; ctx.fillRect(50, 25, 95, 125);
+        ctx.strokeStyle = 'rgba(57,255,20,' + pulse1 + ')'; ctx.lineWidth = 2; ctx.strokeRect(50, 25, 95, 125);
+        ctx.fillStyle = '#39FF14'; ctx.font = 'bold 32px serif'; ctx.textAlign = 'center'; ctx.fillText('🎮', 97, 75);
+        ctx.fillStyle = '#39FF14'; ctx.font = '8px "Press Start 2P"'; ctx.fillText('GAME', 97, 100);
+        ctx.fillStyle = '#00ffff'; ctx.font = '6px "Press Start 2P"'; ctx.fillText('DEV', 97, 115);
+        // Scanline effect
+        ctx.globalAlpha = 0.1;
+        for (let y = 26; y < 149; y += 3) { ctx.fillStyle = '#000'; ctx.fillRect(51, y, 93, 1); }
+        ctx.globalAlpha = 1;
 
-        // Desk
-        ctx.fillStyle = '#6D4C41'; ctx.fillRect(300, H * 0.42, 250, 15);
-        ctx.fillStyle = '#5D4037'; ctx.fillRect(310, H * 0.42 + 15, 10, 80); ctx.fillRect(530, H * 0.42 + 15, 10, 80);
+        // Cherry blossom poster
+        const pulse2 = Math.sin(t * 2.5 + 1) * 0.3 + 0.7;
+        ctx.fillStyle = '#1a0a15'; ctx.fillRect(170, 18, 85, 115);
+        ctx.strokeStyle = 'rgba(255,107,157,' + pulse2 + ')'; ctx.lineWidth = 2; ctx.strokeRect(170, 18, 85, 115);
+        ctx.fillStyle = '#FF6B9D'; ctx.font = 'bold 30px serif'; ctx.fillText('🌸', 212, 65);
+        ctx.fillStyle = '#ff6b9d'; ctx.font = '7px "Press Start 2P"'; ctx.fillText('桜', 212, 90);
+        ctx.fillStyle = '#ff9dbd'; ctx.font = '5px "Press Start 2P"'; ctx.fillText('SAKURA', 212, 108);
 
-        // Monitor
-        ctx.fillStyle = '#111'; ctx.fillRect(370, H * 0.2, 120, 85);
-        ctx.fillStyle = '#1a1a3e'; ctx.fillRect(375, H * 0.2 + 4, 110, 75);
-        ctx.fillStyle = '#39FF14'; ctx.font = '7px monospace'; ctx.textAlign = 'left';
-        ['function play() {', '  score++;', '  render();', '}', "// Mayowa's code"].forEach((l, i) => ctx.fillText(l, 380, H * 0.2 + 18 + i * 13));
-        ctx.fillStyle = '#333'; ctx.fillRect(420, H * 0.2 + 85, 20, 15);
-        ctx.fillRect(410, H * 0.2 + 98, 40, 5);
-
-        // Keyboard + mouse
-        ctx.fillStyle = '#333'; ctx.fillRect(380, H * 0.42 - 12, 80, 12);
-        ctx.fillStyle = '#555';
-        for (let kx = 383; kx < 457; kx += 8) for (let ky = H * 0.42 - 10; ky < H * 0.42; ky += 6) ctx.fillRect(kx, ky, 5, 4);
-        ctx.fillStyle = '#333'; ctx.beginPath(); ctx.ellipse(475, H * 0.42 - 5, 10, 14, 0, 0, Math.PI * 2); ctx.fill();
-
-        // Bed
-        ctx.fillStyle = '#4527A0'; ctx.fillRect(20, H * 0.55, 180, 80);
-        ctx.fillStyle = '#7E57C2'; ctx.fillRect(20, H * 0.55, 180, 25);
-        ctx.fillStyle = '#E8EAF6'; ctx.beginPath(); ctx.ellipse(55, H * 0.55 + 12, 30, 14, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#3E2723'; ctx.fillRect(15, H * 0.53, 190, 6); ctx.fillRect(15, H * 0.55 + 78, 190, 8);
-
-        // Bookshelf
-        ctx.fillStyle = '#5D4037'; ctx.fillRect(600, H * 0.3, 80, 130);
-        ctx.fillStyle = '#4E342E';
-        [H * 0.3 + 42, H * 0.3 + 84].forEach(sy => ctx.fillRect(600, sy, 80, 5));
-        const bookColors = ['#FF5252','#2196F3','#4CAF50','#FF9800','#9C27B0','#FFEB3B','#00BCD4','#E91E63'];
-        for (let i = 0; i < 8; i++) {
-            ctx.fillStyle = bookColors[i]; ctx.fillRect(608 + (i % 3) * 22, H * 0.3 + 6 + Math.floor(i / 3) * 42, 16, 34);
+        // Roblox poster with hologram effect
+        const pulse3 = Math.sin(t * 2 + 2) * 0.3 + 0.7;
+        ctx.fillStyle = '#0a0a15'; ctx.fillRect(520, 20, 105, 80);
+        ctx.strokeStyle = 'rgba(255,0,0,' + pulse3 + ')'; ctx.lineWidth = 2; ctx.strokeRect(520, 20, 105, 80);
+        ctx.fillStyle = '#FF0000'; ctx.font = 'bold 12px "Press Start 2P"'; ctx.fillText('ROBLOX', 572, 52);
+        ctx.fillStyle = '#00ffff'; ctx.font = '6px "Press Start 2P"'; ctx.fillText('Coming 2026', 572, 72);
+        // Hologram flicker
+        if (Math.sin(t * 8) > 0.3) {
+            ctx.globalAlpha = 0.05; ctx.fillStyle = '#00ffff'; ctx.fillRect(521, 21, 103, 78); ctx.globalAlpha = 1;
         }
 
-        // Lamp
-        ctx.fillStyle = '#FFD54F';
-        ctx.beginPath(); ctx.moveTo(560, H * 0.42); ctx.lineTo(545, H * 0.28); ctx.lineTo(575, H * 0.28); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = 'rgba(255,213,79,0.15)'; ctx.beginPath(); ctx.arc(560, H * 0.32, 30, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#5D4037'; ctx.fillRect(557, H * 0.42, 6, 12);
+        // ═══ FLOATING DESK (glass/metal) ═══
+        const deskY = H * 0.42;
+        // Glass top with neon edge
+        ctx.fillStyle = 'rgba(30,40,60,0.8)'; ctx.fillRect(295, deskY, 260, 10);
+        ctx.fillStyle = 'rgba(0,200,255,0.4)'; ctx.fillRect(295, deskY + 8, 260, 2);
+        // Floating legs (thin metal with glow)
+        ctx.fillStyle = '#334'; ctx.fillRect(310, deskY + 10, 4, 80); ctx.fillRect(541, deskY + 10, 4, 80);
+        ctx.fillStyle = 'rgba(0,200,255,0.15)'; ctx.fillRect(309, deskY + 10, 6, 80); ctx.fillRect(540, deskY + 10, 6, 80);
 
-        // Rug
-        ctx.fillStyle = 'rgba(106,27,154,0.3)'; ctx.beginPath(); ctx.ellipse(W / 2, H * 0.82, 130, 40, 0, 0, Math.PI * 2); ctx.fill();
+        // ═══ MONITOR (ultra-wide curved) ═══
+        const monY = H * 0.17;
+        // Bezel
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.roundRect(345, monY, 160, 100, 6); ctx.fill();
+        // Screen
+        const scrGrad = ctx.createLinearGradient(350, monY + 4, 350, monY + 94);
+        scrGrad.addColorStop(0, '#0a0a2e'); scrGrad.addColorStop(1, '#0a1a1a');
+        ctx.fillStyle = scrGrad; ctx.beginPath(); ctx.roundRect(350, monY + 4, 150, 90, 4); ctx.fill();
+        // Code on screen
+        ctx.fillStyle = '#39FF14'; ctx.font = '7px monospace'; ctx.textAlign = 'left';
+        const codeLines = ['class GameDev {', '  build() {', '    this.render();', '    this.score++;', '  }', "  // Mayowa's code"];
+        codeLines.forEach((l, i) => ctx.fillText(l, 358, monY + 20 + i * 12));
+        // Cursor blink
+        if (Math.sin(t * 4) > 0) { ctx.fillStyle = '#39FF14'; ctx.fillRect(358 + 7 * 16, monY + 20 + 5 * 12 - 7, 6, 8); }
+        // Monitor stand
+        ctx.fillStyle = '#222'; ctx.fillRect(415, monY + 98, 20, 15);
+        ctx.fillStyle = '#333'; ctx.fillRect(405, monY + 111, 40, 4);
+        // Screen glow on wall
+        ctx.globalAlpha = 0.06; ctx.fillStyle = '#39FF14'; ctx.fillRect(340, monY - 15, 170, 15); ctx.globalAlpha = 1;
 
-        // Backpack
-        ctx.fillStyle = '#1565C0'; ctx.beginPath(); ctx.roundRect(240, H * 0.72, 35, 45, 6); ctx.fill();
-        ctx.fillStyle = '#FFD54F'; ctx.fillRect(254, H * 0.72 + 4, 8, 8);
+        // ═══ KEYBOARD (RGB) ═══
+        ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.roundRect(375, deskY - 14, 90, 14, 3); ctx.fill();
+        const kbColors = ['#ff0040','#ff8000','#ffff00','#00ff40','#00ffff','#4080ff','#8000ff','#ff00ff'];
+        for (let kx = 0; kx < 10; kx++) {
+            for (let ky = 0; ky < 2; ky++) {
+                ctx.fillStyle = kbColors[(kx + ky) % kbColors.length];
+                ctx.globalAlpha = 0.4 + Math.sin(t * 3 + kx * 0.5) * 0.3;
+                ctx.fillRect(379 + kx * 8, deskY - 12 + ky * 6, 5, 4);
+            }
+        }
+        ctx.globalAlpha = 1;
+        // Mouse
+        ctx.fillStyle = '#222'; ctx.beginPath(); ctx.ellipse(480, deskY - 7, 10, 14, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(0,255,255,0.3)'; ctx.fillRect(479, deskY - 14, 2, 6);
 
-        // Sneakers
-        ctx.fillStyle = '#FF5252'; ctx.fillRect(630, H * 0.88, 22, 12);
-        ctx.fillStyle = '#E53935'; ctx.fillRect(655, H * 0.89, 22, 11);
-        ctx.fillStyle = '#fff'; ctx.fillRect(630, H * 0.88 + 8, 22, 3); ctx.fillRect(655, H * 0.89 + 7, 22, 3);
+        // ═══ GAMING BED (futuristic pod) ═══
+        // Pod frame
+        ctx.fillStyle = '#1a1a30'; ctx.beginPath(); ctx.roundRect(15, H * 0.52, 195, 90, 10); ctx.fill();
+        ctx.strokeStyle = 'rgba(100,80,200,0.5)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.roundRect(15, H * 0.52, 195, 90, 10); ctx.stroke();
+        // Mattress
+        const bedGrad = ctx.createLinearGradient(20, H * 0.54, 20, H * 0.54 + 30);
+        bedGrad.addColorStop(0, '#4527A0'); bedGrad.addColorStop(1, '#311B92');
+        ctx.fillStyle = bedGrad; ctx.beginPath(); ctx.roundRect(20, H * 0.54, 185, 30, 6); ctx.fill();
+        // Pillow
+        ctx.fillStyle = '#E8EAF6'; ctx.beginPath(); ctx.ellipse(55, H * 0.56 + 5, 30, 12, 0, 0, Math.PI * 2); ctx.fill();
+        // LED strip under bed
+        for (let i = 0; i < 8; i++) {
+            ctx.fillStyle = 'rgba(100,80,200,' + (0.3 + Math.sin(t * 2 + i * 0.5) * 0.2) + ')';
+            ctx.fillRect(25 + i * 23, H * 0.52 + 85, 15, 3);
+        }
 
-        // Clock
-        ctx.fillStyle = '#fff'; ctx.strokeStyle = '#333'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(450, 45, 25, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#111'; ctx.font = '7px "Press Start 2P"'; ctx.textAlign = 'center';
-        ctx.fillText('12', 450, 32); ctx.fillText('6', 450, 66); ctx.fillText('3', 470, 49); ctx.fillText('9', 430, 49);
+        // ═══ HOLOGRAPHIC BOOKSHELF ═══
+        ctx.fillStyle = 'rgba(20,20,40,0.8)'; ctx.fillRect(598, H * 0.28, 88, 140);
+        ctx.strokeStyle = 'rgba(0,200,255,0.3)'; ctx.lineWidth = 1;
+        ctx.strokeRect(598, H * 0.28, 88, 140);
+        // Shelves with glow
+        [H * 0.28 + 46, H * 0.28 + 92].forEach(sy => {
+            ctx.fillStyle = 'rgba(0,200,255,0.15)'; ctx.fillRect(598, sy, 88, 2);
+        });
+        // Glowing books
+        const bookColors = ['#FF5252','#2196F3','#39FF14','#FF9800','#E040FB','#FFD740','#00E5FF','#FF6E40'];
+        for (let i = 0; i < 8; i++) {
+            ctx.fillStyle = bookColors[i];
+            ctx.globalAlpha = 0.7 + Math.sin(t * 1.5 + i) * 0.2;
+            ctx.fillRect(606 + (i % 3) * 26, H * 0.28 + 8 + Math.floor(i / 3) * 46, 18, 36);
+            ctx.globalAlpha = 0.15;
+            ctx.fillRect(606 + (i % 3) * 26 - 2, H * 0.28 + 6 + Math.floor(i / 3) * 46, 22, 40);
+        }
+        ctx.globalAlpha = 1;
+
+        // ═══ NEON LAMP ═══
+        const lampGlow = 0.5 + Math.sin(t * 1.8) * 0.3;
+        ctx.fillStyle = '#222'; ctx.fillRect(557, deskY, 6, 12);
+        ctx.fillStyle = 'rgba(0,255,255,' + lampGlow + ')';
+        ctx.beginPath();
+        ctx.moveTo(548, H * 0.28); ctx.lineTo(572, H * 0.28); ctx.lineTo(564, deskY); ctx.lineTo(556, deskY);
+        ctx.closePath(); ctx.fill();
+        ctx.shadowColor = '#00ffff'; ctx.shadowBlur = 20;
+        ctx.fillStyle = 'rgba(0,255,255,0.2)'; ctx.beginPath(); ctx.arc(560, H * 0.32, 35, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // ═══ NEON RUG (circular light pad) ═══
+        const rugPulse = 0.1 + Math.sin(t) * 0.05;
+        const rugGrad = ctx.createRadialGradient(W / 2, H * 0.82, 10, W / 2, H * 0.82, 120);
+        rugGrad.addColorStop(0, 'rgba(100,50,200,' + rugPulse + ')');
+        rugGrad.addColorStop(0.5, 'rgba(50,20,150,' + (rugPulse * 0.5) + ')');
+        rugGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = rugGrad; ctx.beginPath(); ctx.ellipse(W / 2, H * 0.82, 130, 40, 0, 0, Math.PI * 2); ctx.fill();
+        // Ring
+        ctx.strokeStyle = 'rgba(100,50,200,0.2)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.ellipse(W / 2, H * 0.82, 120, 35, 0, 0, Math.PI * 2); ctx.stroke();
+
+        // ═══ BACKPACK (futuristic) ═══
+        ctx.fillStyle = '#0d47a1'; ctx.beginPath(); ctx.roundRect(238, H * 0.72, 38, 48, 8); ctx.fill();
+        ctx.strokeStyle = 'rgba(0,200,255,0.4)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.roundRect(238, H * 0.72, 38, 48, 8); ctx.stroke();
+        ctx.fillStyle = '#00ffff'; ctx.fillRect(252, H * 0.72 + 6, 10, 10);
+
+        // ═══ SNEAKERS ═══
+        ctx.fillStyle = '#FF5252'; ctx.beginPath(); ctx.roundRect(628, H * 0.88, 24, 13, 3); ctx.fill();
+        ctx.fillStyle = '#E53935'; ctx.beginPath(); ctx.roundRect(655, H * 0.89, 24, 12, 3); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(630, H * 0.88 + 9, 20, 2); ctx.fillRect(657, H * 0.89 + 8, 20, 2);
+
+        // ═══ DIGITAL CLOCK (holographic) ═══
         const now = new Date();
-        const hr = (now.getHours() % 12 + now.getMinutes() / 60) * (Math.PI * 2 / 12) - Math.PI / 2;
-        const mn = (now.getMinutes() / 60) * Math.PI * 2 - Math.PI / 2;
-        ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5;
-        ctx.beginPath(); ctx.moveTo(450, 45); ctx.lineTo(450 + Math.cos(hr) * 13, 45 + Math.sin(hr) * 13); ctx.stroke();
-        ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(450, 45); ctx.lineTo(450 + Math.cos(mn) * 18, 45 + Math.sin(mn) * 18); ctx.stroke();
+        const timeStr = now.getHours().toString().padStart(2,'0') + (Math.sin(t * 2) > 0 ? ':' : ' ') + now.getMinutes().toString().padStart(2,'0');
+        ctx.fillStyle = '#0a0a15'; ctx.beginPath(); ctx.roundRect(425, 25, 80, 40, 6); ctx.fill();
+        ctx.strokeStyle = 'rgba(0,255,255,0.4)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.roundRect(425, 25, 80, 40, 6); ctx.stroke();
+        ctx.fillStyle = '#00ffff'; ctx.font = '14px "Press Start 2P"'; ctx.textAlign = 'center';
+        ctx.shadowColor = '#00ffff'; ctx.shadowBlur = 8;
+        ctx.fillText(timeStr, 465, 52);
+        ctx.shadowBlur = 0;
+
+        // ═══ FLOATING PARTICLES ═══
+        ctx.globalAlpha = 0.3;
+        for (let i = 0; i < 15; i++) {
+            const px = (i * 47 + t * 20) % W;
+            const py = (i * 31 + Math.sin(t + i) * 30) % (floorY - 20) + 10;
+            const size = 1 + Math.sin(t * 2 + i) * 0.5;
+            ctx.fillStyle = i % 3 === 0 ? '#00ffff' : i % 3 === 1 ? '#ff6b9d' : '#39FF14';
+            ctx.beginPath(); ctx.arc(px, py, size, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
     },
 
     /* ═══════════ INTERACTIONS ═══════════ */
@@ -1256,6 +1425,16 @@ const App = {
         const rect = this.canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
+
+        // Signs
+        this.signs.forEach(sign => {
+            if (sign._screenX === undefined) return;
+            if (mx >= sign._screenX && mx <= sign._screenX + sign._screenW &&
+                my >= sign._screenY && my <= sign._screenY + sign._screenH) {
+                AudioManager.playSfx('click');
+                if (sign.action === 'about') { this.openModal('aboutModal'); Achievements.visitSection('about'); }
+            }
+        });
 
         // House
         const h = this.house;
